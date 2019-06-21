@@ -1,0 +1,324 @@
+---
+title: <center><font color="#006666">郵輪旅遊｜圓你一個度假夢</font><br /><center>
+author:  <center>吳祐誠、苗鈺、郭千瑜、王苡蓁、洪靖惠<center>
+output: 
+  html_document:
+    toc: true
+    toc_depth: 2
+    toc_float:
+      collapsed: false
+      smooth_scroll: false
+runtime: shiny
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+--------------------------------------------------------------------------------------------
+
+<br/>
+
+##<font color="#660000">0. 報告架構</font><br /> 
+1. 動機與背景
+2. 搭乘經驗分享
+3. 資料介紹與分析
+4. 結語
+
+<br/>
+
+##<font color="#666600">1. 動機與背景</font><br /> 
+
+遊輪旅遊，作為一新興的旅遊型態，它有什麼吸引人的特點呢？為何可以吸引越來越多的國人前去體驗這種新型態的旅遊方式？異於以往搭乘飛機出遊的模式，在遊輪上你可以體驗各式各樣的遊玩設施，在這裡，你可以盡情的吃喝玩耍。
+
+<br/>
+<iframe width="710" height="400"src="https://www.youtube.com/embed/GnLeTHPIrd4" frameborder="0"allowfullscreen>
+</iframe>
+
+<br/>
+
+####台灣通往亞洲各地的郵輪航道圖
+
+![ ](/Users/ChingHuiHung/Desktop/data/pp01.jpg)
+
+<br/>
+
+####台灣的七個國際商港
+
+<br/>
+![ ](/Users/ChingHuiHung/Desktop/data/pp02.jpg)
+
+<br/>
+
+##<font color="#006600">2. 搭乘經驗—去年夏天的太陽公主號</font><br /> 
+
+
+![ ](/Users/ChingHuiHung/Desktop/data/pp03.jpg)
+![ ](/Users/ChingHuiHung/Desktop/data/pp04.jpg)
+
+<br/>
+
+##<font color="#006666">3. 資料介紹</font><br /> 
+
+
+* 資料來源：臺灣港務股份有限公司（政府資料開放平台）
+    + 樣本數＝184 （93年1月～108年4月／101年1月～108年4月）
+    + 7個國際商港：基隆港、臺北港、臺中港、安平港、高雄港、花蓮港、蘇澳港
+    + 人次／艘次
+
+<br/>
+
+##<font color="#000066">4. 資料分析</font><br /> 
+
+<br/>
+```{r command01, echo=FALSE}
+library(shiny)
+library(TSA)
+library(forecast)
+library(tseries)
+
+
+ui <- fluidPage(  
+  titlePanel("進出國際商港旅客、船隻分析"),
+  navbarPage("    ",
+             tabPanel("Plot",
+                      sidebarLayout(
+                        sidebarPanel(
+                          sliderInput("year",
+                                      "Year",
+                                      min = 2004,
+                                      max = 2019,
+                                      value = 2016,step=1)
+
+                          ),
+                        mainPanel(
+                          plotOutput("plot"),
+                          plotOutput("plot2")
+                        )
+                      )
+             ),
+             tabPanel("Summary",
+                      sidebarLayout(
+                        sidebarPanel(
+                          radioButtons("plotType", "Plot type",
+                                       c("Passengers"="p", "Boats"="b")
+                        )
+                      ),
+                      mainPanel(
+                        plotOutput("plot3")
+                      )
+                      )
+             ),
+             tabPanel("time series",
+                      sidebarLayout(
+                        sidebarPanel(
+                          checkboxGroupInput("want", "City",
+                                             c("Keelong","Taichung", "Kaohsiung", "Hualien","SU-ao", "Taipei", "Anping") 
+                          )
+                        ),
+                        mainPanel(
+                          plotOutput("plot4")
+                        )
+                      )
+             ),
+             tabPanel("bar chart",
+                      sidebarLayout(
+                        sidebarPanel(
+                          sliderInput("year1",
+                                      "Year",
+                                      min = 101,
+                                      max = 108,
+                                      value = 104,step=1)
+                          
+                        ),
+                          mainPanel(
+                            plotOutput("plot5")
+                          )
+                        )
+             )
+  )
+)
+
+
+## Define server logic required to draw a histogram
+server <- function(input, output, session) {
+  
+  data<-read.csv("~/Desktop/data/cruise passengers.csv")
+
+  pass1.1<-ts(data$total,frequency=12,start=c(2004,1),end=c(2015,12))
+  pass1.2<-ts(data$total,frequency=12,start=c(2004,1))
+  model4=arima(pass1.1,order=c(3,1,3),seasonal=list(order=c(1,1,2),period=12),transform.pars=FALSE,fixed=c(NA,NA,NA,NA,NA,NA,NA,0,NA))
+  p<-predict(model4,50)
+  
+  
+  output$plot <- renderPlot({
+    plot(pass1.2, type="n", pch=1,xlim=c(2004,2020),ylim=c(0,300000)
+          ,xlab = "Time",ylab = "Passengers",main="國際商港進出港旅客人數之原始時間序列圖",
+            family="DFKaiShu-SB-Estd-BF",cex.main=2, cex.lab = 1.17,cex.axis = 1)
+    polygon(c(input$year,input$year,input$year+1,input$year+1),c(-100000,400000,400000,-100000), col="#FFCCCC",axis=FALSE)
+    par(new=T)
+
+    
+    plot(pass1.2, type="o", pch=1,xlim=c(2004,2020),ylim=c(0,300000),xlab = " "
+         ,ylab = "",main=" ",axis=FALSE, labels=FALSE)
+    points(p$pred, type="o", pch=1,col="red",axis=FALSE, labels=FALSE)
+    
+  })
+  
+  
+  output$plot2 <- renderPlot({
+
+    plot(pass1.2, type="o", pch=1,xlim=c(input$year,input$year+1),ylim=c(0,300000)
+         ,xlab = "Time",ylab = "Passengers",main="國際商港進出港旅客人數之時間序列圖",
+            family="DFKaiShu-SB-Estd-BF",cex.main=2, cex.lab = 1.17,cex.axis = 1)
+    points(p$pred, type="o", pch=1,col="red")
+    
+  })
+  
+  
+  data2<-read.csv("~/Desktop/data/Form3.csv")
+  #data2
+  boat=c(sum(data2$BA),
+         sum(data2$CA),
+         sum(data2$DA),
+         sum(data2$EA),
+         sum(data2$FA),
+         sum(data2$GA),
+         sum(data2$HA))
+  people= c(sum(data2$BB),
+            sum(data2$CB),
+            sum(data2$DB),
+            sum(data2$EB),
+            sum(data2$FB),
+            sum(data2$GB),
+            sum(data2$HB))
+ 
+  
+  
+  output$plot3 <- renderPlot({
+    print(boat)
+    print(people)
+    if (input$plotType=="p"){
+      barplot(people,names.arg = c("Keelong","Taichung", "Kaohsiung", "Hualien","SU-ao", "Taipei", "Anping")
+              ,xlab="Harbor",ylab="Passengers",col="lightsteelblue", cex.lab = 1.17,cex.axis = 1,
+                main="各港口進出港旅客人數長條圖",family="DFKaiShu-SB-Estd-BF",border="white",cex.main =2)
+    }
+    if(input$plotType=="b"){
+      barplot(boat,names.arg = c("Keelong","Taichung", "Kaohsiung", "Hualien","SU-ao", "Taipei", "Anping"),
+              xlab="Harbor",ylab="Boats",col="thistle",  cex.lab = 1.17,cex.axis = 1,
+                main="各港口進出船隻艘次長條圖",family="DFKaiShu-SB-Estd-BF",border="white",cex.main =2)
+    }
+  }
+  )
+  
+  
+  BBBB<-ts(data2$BA,frequency=12,start=c(2012,1),end=c(2019,4))
+  CCCC<-ts(data2$CA,frequency=12,start=c(2012,1),end=c(2019,4))
+  DDDD<-ts(data2$DA,frequency=12,start=c(2012,1),end=c(2019,4))
+  EEEE<-ts(data2$EA,frequency=12,start=c(2012,1),end=c(2019,4))
+  FFFF<-ts(data2$FA,frequency=12,start=c(2012,1),end=c(2019,4))
+  GGGG<-ts(data2$GA,frequency=12,start=c(2012,1),end=c(2019,4))
+  HHHH<-ts(data2$HA,frequency=12,start=c(2012,1),end=c(2019,4))
+  
+  
+  output$plot4 <- renderPlot({
+    plot(BBBB,type="n",ylab = "Passenger",main="各港口進出港旅客人數之時間序列圖",family="DFKaiShu-SB-Estd-BF",cex.main =2, cex.lab = 1.17,cex.axis = 1)
+
+    if("Keelong" %in% input$want){  par(new=T)
+      plot(BBBB,col="red3",lwd=2,axes=FALSE,ylab = " ",xlab = " ")}
+    if("Taichung" %in% input$want){  par(new=T)
+      plot(CCCC,col="orange3",lwd=2,axes=FALSE,ylab = " ",xlab = " ")}
+    if("Kaohsiung" %in% input$want){  par(new=T)
+      plot(DDDD,col="yellow2",lwd=2,axes=FALSE,ylab = " ",xlab = " ")}
+    if("hualien" %in% input$want){  par(new=T)
+      plot(EEEE,col="green4",lwd=2,axes=FALSE,ylab = " ",xlab = " ")}
+    if("SU-ao" %in% input$want){  par(new=T)
+      plot(FFFF,col="blue1",lwd=2,axes=FALSE,ylab = " ",xlab = " ")}
+    if("Taipei" %in% input$want){  par(new=T)
+      plot(GGGG,col="blue4",lwd=2,axes=FALSE,ylab = " ",xlab = " ")}
+    if("Anping" %in% input$want){  par(new=T)
+      plot(HHHH,col="pink2",lwd=2,axes=FALSE,ylab = " ",xlab = " ")}
+
+  })
+  
+  
+
+  data3<-read.csv("~/Desktop/data/Form3-1.csv") 
+  #data3
+  output$plot5 <- renderPlot({
+
+   
+    if(108 == input$year1){  
+      barplot(data3$X108,names.arg = c("Total","Keelong","Taichung", "Kaohsiung", "Hualien","SU-ao", "Taipei", "Anping")
+              ,xlab="Harbor",ylab="Passengers",col="lightblue", cex.lab = 1.17,cex.axis = 1,
+              main="民國108年各港口進出港旅客人數長條圖",family="DFKaiShu-SB-Estd-BF",border="white",cex.main =2)
+    }
+    if(107 == input$year1){  
+      barplot(data3$X107,names.arg = c("Total","Keelong","Taichung", "Kaohsiung", "Hualien","SU-ao", "Taipei", "Anping")
+              ,xlab="Harbor",ylab="Passengers",col="lightpink", cex.lab = 1.17,cex.axis = 1,
+              main="民國107年各港口進出港旅客人數長條圖",family="DFKaiShu-SB-Estd-BF",border="white",cex.main =2)
+    } 
+    if(106 == input$year1){  
+      barplot(data3$X106,names.arg =c("Total","Keelong","Taichung", "Kaohsiung", "Hualien","SU-ao", "Taipei", "Anping")
+              ,xlab="Harbor",ylab="Passengers",col="tan", cex.lab = 1.17,cex.axis = 1,
+              main="民國106年各港口進出港旅客人數長條圖",family="DFKaiShu-SB-Estd-BF",border="white",cex.main =2)
+    } 
+    if(105 == input$year1){  
+      barplot(data3$X105,names.arg = c("Total","Keelong","Taichung", "Kaohsiung", "Hualien","SU-ao", "Taipei", "Anping")
+              ,xlab="Harbor",ylab="Passengers",col="khaki", cex.lab = 1.17,cex.axis = 1,
+              main="民國105年各港口進出港旅客人數長條圖",family="DFKaiShu-SB-Estd-BF",border="white",cex.main =2)
+    } 
+    if(104 == input$year1){  
+      barplot(data3$X104,names.arg =  c("Total","Keelong","Taichung", "Kaohsiung", "Hualien","SU-ao", "Taipei", "Anping")
+              ,xlab="Harbor",ylab="Passengers",col="lightsalmon", cex.lab = 1.17,cex.axis = 1,
+              main="民國104年各港口進出港旅客人數長條圖",family="DFKaiShu-SB-Estd-BF",border="white",cex.main =2)
+    } 
+    if(103 == input$year1){  
+      barplot(data3$X103,names.arg =  c("Total","Keelong","Taichung", "Kaohsiung", "Hualien","SU-ao", "Taipei", "Anping")
+              ,xlab="Harbor",ylab="Passengers",col="darkseagreen", cex.lab = 1.17,cex.axis = 1,
+              main="民國103年各港口進出港旅客人數長條圖",family="DFKaiShu-SB-Estd-BF",border="white",cex.main =2)
+    } 
+    if(102 == input$year1){  
+      barplot(data3$X102,names.arg =  c("Total","Keelong","Taichung", "Kaohsiung", "Hualien","SU-ao", "Taipei", "Anping")
+              ,xlab="Harbor",ylab="Passengers",col="thistle", cex.lab = 1.17,cex.axis = 1,
+              main="民國102年各港口進出港旅客人數長條圖",family="DFKaiShu-SB-Estd-BF",border="white",cex.main =2)
+    } 
+    if(101 == input$year1){  
+      barplot(data3$X101,names.arg =  c("Total","Keelong","Taichung", "Kaohsiung", "Hualien","SU-ao", "Taipei", "Anping")
+              ,xlab="Harbor",ylab="Passenger",col="rosybrown", cex.lab = 1.5,cex.axis = 1.2,
+              main="民國101年各港口進出港旅客人數長條圖",family="DFKaiShu-SB-Estd-BF",border="white",cex.main =2)
+    } 
+    
+  
+
+  })
+  output$table <- renderDataTable({
+    datatable(cars)
+  })
+}
+
+
+shinyApp(ui = ui, server = server)
+
+
+```
+
+<br/>
+
+##<font color="#660066">5. 結語</font><br /> 
+
+從圖表資料可以看出，從2004年的1月開始到2018年的10月的國際商港進出港旅客人數有緩慢上升的趨勢。此外，可看出每年的高點大約落在4月至7月左右，因適逢假期，出去遊玩的人本就會增加；低點大多落在12月至2月，原因為郵輪航線大多以日本、韓國為目的地，冬季吹起東北季風，不利於航行，因此為旅遊淡季。此外，趨勢大致是以一年為一週期，推論此資料有季節性的變化。
+
+上完這一堂課暑假就真的來了啦！畢業旅行和暑假家庭旅遊想要出國玩嗎？想要出國又不敢搭飛機嗎？機票太貴？想要自由又懶得查行程嗎？郵輪旅遊提供我們另一個選擇，暑假來了，快去買船票吧！！！！！！！！
+
+<br/>
+
+##<font color="#660000">6. 分工</font><br /> 
+
+
+| Who      | What           | 
+| ---------|:-------------:|
+| 郭千瑜   | 資料處理、上台報告 |
+| 苗鈺     | shiny製作 |
+| 吳祐誠   | shiny製作 |
+| 王苡蓁   | shiny協助、結論 |
+| 洪靖惠   | Rmarkdown製作 |
